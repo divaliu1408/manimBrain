@@ -1,0 +1,92 @@
+from manim import *
+import numpy as np
+
+
+class EEGSignal(Scene):
+    def construct(self):
+        # Create axes for the left half of the screen
+        axes = Axes(
+            x_range=[0, 10, 1],
+            y_range=[-2, 2, 1],
+            axis_config={"color": BLUE}
+        ).add_coordinates()
+
+        # Create separate ValueTrackers for channel1 and channel2
+        time_tracker1 = ValueTracker(0)
+        time_tracker2 = ValueTracker(0)
+
+        # Function to create a sine wave with phase shift and noise
+        def sine_wave_function(tracker, phase_diff=0.0):
+            phase = tracker.get_value() * 2 * np.pi  # Simulate phase shift
+            noise_level = 0.2  # Adjust the level of noise
+            return lambda x: np.sin(x + phase + phase_diff) + noise_level * np.random.normal()
+
+        # Create the initial sine wave for Channel 1
+        sine_wave1 = axes.plot(sine_wave_function(time_tracker1), color=YELLOW)
+        sine_label = MathTex(r"EEG \quad signal").move_to(ORIGIN)  # Move label to the center
+
+        # Create "Channel 1" label, positioned to the upper-center of the sine wave
+        channel1_label = MathTex(r"Channel \quad 1").next_to(sine_wave1, UP, buff=0.2)
+
+        # Add "EEG signal" label to the scene at the center
+        self.play(Write(sine_label))
+        self.wait(1)
+
+        # Move the "EEG signal" label upwards
+        self.play(sine_label.animate.shift(UP * 3.5))
+
+        # Add channel1 label to the upper center of the sine wave
+        self.play(Write(channel1_label))
+
+        # Add axes and sine wave for Channel 1
+        self.play(Create(axes), Create(sine_wave1))
+        self.wait(1)
+
+        # Make Channel 1 keep fluctuating
+        self.add(sine_wave1)
+        self.play(
+            UpdateFromFunc(sine_wave1, lambda m: m.become(axes.plot(sine_wave_function(time_tracker1), color=YELLOW))),
+            time_tracker1.animate.set_value(1),  # Simulate time going from 0 to 1
+            run_time=3,
+            rate_func=linear
+        )
+
+        # Smoothly shrink and move Channel 1 to the left half of the screen
+        self.play(
+            sine_wave1.animate.scale(0.5).shift(LEFT * 3),
+            axes.animate.scale(0.5).shift(LEFT * 3),
+            channel1_label.animate.next_to(sine_wave1, UP, buff=0.2).shift(LEFT * 3),
+            run_time=3,
+        )
+
+
+
+        # Create axes for Channel 2, positioned on the right half of the screen
+        axes2 = Axes(
+            x_range=[0, 10, 1],
+            y_range=[-2, 2, 1],
+            axis_config={"color": BLUE}
+        ).shift(RIGHT * 4.5).scale(0.5)
+
+        # Create sine wave for Channel 2 with a phase difference of π/2
+        sine_wave2 = axes2.plot(sine_wave_function(time_tracker2, phase_diff=np.pi / 2), color=GREEN)
+        channel2_label = MathTex(r"Channel \quad 2").next_to(sine_wave2, UP*6, buff=0.2)
+
+        # Add Channel 2 elements to the scene
+        self.play(Write(channel2_label))
+        self.play(Create(axes2), Create(sine_wave2), run_time=1)
+
+        # Keep both Channel 1 and Channel 2 fluctuating simultaneously, with phase difference
+        self.play(
+            AnimationGroup(
+                UpdateFromFunc(sine_wave1, lambda m: m.become(axes.plot(sine_wave_function(time_tracker1), color=YELLOW))),
+                UpdateFromFunc(sine_wave2, lambda m: m.become(axes2.plot(sine_wave_function(time_tracker2, phase_diff=np.pi / 2), color=GREEN))),
+                time_tracker1.animate.set_value(2),  # Advance time for Channel 1
+                time_tracker2.animate.set_value(2),  # Advance time for Channel 2
+                lag_ratio=0
+            ),
+            run_time=4,
+            rate_func=linear
+        )
+
+        self.wait(1)
